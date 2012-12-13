@@ -1,0 +1,70 @@
+#!/usr/bin/env python
+from argh import ArghParser, arg
+import argparse
+import yaml
+import subprocess
+import select
+import sys
+import os
+import fcntl
+
+def set_non_blocking(fd):
+    fileno = fd.fileno()
+    fl = fcntl.fcntl(fileno, fcntl.F_GETFL)
+    fcntl.fcntl(fileno, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+
+class MultiRunner(object):
+    def __init__(self, cmd_objs):
+        self.processes = {}
+        self.cmd_objs = cmd_objs
+
+    def start_process(self, name, command):
+        proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+        self.processes[proc.stdout.fileno()] = (name, proc)
+        set_non_blocking(proc.stdout)
+
+    def run(self):
+        for obj in self.cmd_objs:
+            assert obj.has_key('command'), "'command' parameter is required for every process."
+            self.start_process(self.get_name(obj), obj['command'])
+
+        while self.processes:
+            rlist, _, _ = select.select([p.stdout for _, p in self.processes.values()], [], [])
+            for fd in rlist:
+                name, proc = self.processes[fd.fileno()]
+                lines = fd.read().split('\n')
+                lines = ['[%(name)s(%(pid)s)] %(line)s\n' % {
+                    'name' : name,
+                    'pid' : proc.pid,
+                    'line' : line 
+                } for line in lines]
+                sys.stdout.writelines(lines)
+                if proc.poll() is not None:
+                    self.processes.pop(fd.fileno())
+
+    def get_name(self, obj):
+        return obj.get('name', os.path.basename(obj['command'].split(' ')[0]))
+        
+@arg('--config', '-f', default='multirun.conf', help='Configuration file that specifies the commands to be executed.(default: multirun.conf)')
+def main(args):
+    """
+    Run multiple processes and manage all of their outputs in one standard out stream.
+    Example of YAML-formatted config file
+    ---
+    name: proc1
+    command: shell-command-to-start-proc1
+    ---
+    name: proc2
+    command: shell-command-to-start-proc2
+    """
+    cmd_objs = yaml.load_all(open(args.config))
+    runner = MultiRunner(cmd_objs)
+    try:
+        runner.run()
+    except KeyboardInterrupt:
+        pass
+
+if __name__ == '__main__':
+    parser = ArghParser(formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.set_default_command(main)
+    parser.dispatch()
