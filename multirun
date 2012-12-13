@@ -48,7 +48,7 @@ class MultiRunner(object):
 @arg('--config', '-f', default='multirun.conf', help='Configuration file that specifies the commands to be executed.(default: multirun.conf)')
 def main(args):
     """
-    Run multiple processes and manage all of their outputs in one standard out stream.
+    Launch multiple processes and manage all of their outputs together.
     Example of YAML-formatted config file
     ---
     name: proc1
