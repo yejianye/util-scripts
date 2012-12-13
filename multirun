@@ -19,9 +19,11 @@ class MultiRunner(object):
         self.cmd_objs = cmd_objs
 
     def start_process(self, name, command):
-        proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-        self.processes[proc.stdout.fileno()] = (name, proc)
-        set_non_blocking(proc.stdout)
+        proc = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout_prefix, stderr_prefix = '%s(%s)|OUT' % (name, proc.pid) ,  '%s(%s)|ERR' % (name, proc.pid)
+        self.processes[proc.stdout] = (proc, stdout_prefix)
+        self.processes[proc.stderr] = (proc, stderr_prefix)
+        map(set_non_blocking, [proc.stdout, proc.stderr])
 
     def run(self):
         for obj in self.cmd_objs:
@@ -29,18 +31,15 @@ class MultiRunner(object):
             self.start_process(self.get_name(obj), obj['command'])
 
         while self.processes:
-            rlist, _, _ = select.select([p.stdout for _, p in self.processes.values()], [], [])
+            rlist, _, _ = select.select(self.processes.keys(), [], [])
             for fd in rlist:
-                name, proc = self.processes[fd.fileno()]
-                lines = fd.read().split('\n')
-                lines = ['[%(name)s(%(pid)s)] %(line)s\n' % {
-                    'name' : name,
-                    'pid' : proc.pid,
-                    'line' : line 
-                } for line in lines]
-                sys.stdout.writelines(lines)
+                proc, prefix = self.processes[fd]
+                content = fd.read()
+                if content:
+                    lines = ['[%s] %s\n' % (prefix, line) for line in content.split('\n')]
+                    sys.stdout.writelines(lines)
                 if proc.poll() is not None:
-                    self.processes.pop(fd.fileno())
+                    self.processes.pop(fd, None)
 
     def get_name(self, obj):
         return obj.get('name', os.path.basename(obj['command'].split(' ')[0]))
