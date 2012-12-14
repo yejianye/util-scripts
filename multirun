@@ -44,7 +44,7 @@ class MultiRunner(object):
     def get_name(self, obj):
         return obj.get('name', os.path.basename(obj['command'].split(' ')[0]))
         
-@arg('--config', '-f', default='multirun.conf', help='Configuration file that specifies the commands to be executed.(default: multirun.conf)')
+@arg('--config', '-f', default='multirun.yml', help='Configuration file that specifies the commands to be executed.(default: multirun.conf)')
 def main(args):
     """
     Launch multiple processes and manage all of their outputs together.
