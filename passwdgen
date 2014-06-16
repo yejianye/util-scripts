@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+import string
+import random
+
+from argh import arg, dispatch_command
+
+@dispatch_command
+@arg('--length', default=16, help='password length')
+@arg('--num', default=1, help='number of passwords to be generated')
+def password_generator(args):
+    for i in xrange(args.num):
+        print ''.join(random.choice(string.letters + string.digits) for x in xrange(args.length))
+
+    
