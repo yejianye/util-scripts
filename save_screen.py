@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import sys
+print("Python version: {} {}".format(sys.executable, sys.version))
 
 import argparse
 import subprocess
@@ -18,7 +20,7 @@ def save_screenshot(filename, scale=1.0):
         _save_screenshot(tmpfile)
         img = Image.open(tmpfile)
         width, height = int(img.size[0] * scale), int(img.size[1] * scale)
-        img.thumbnail((width, height), Image.ANTIALIAS)
+        img.thumbnail((width, height))
         img.save(filename, "PNG")
         os.unlink(tmpfile)
 
