@@ -1,0 +1,2 @@
+#!/bin/zsh
+http localhost:3000/search-link term==$1 limit==$2
